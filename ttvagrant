@@ -2,14 +2,28 @@
 
 function wait_for_ssh {
 	HOST_STRING="$1"
+	REVERSE=0
+	[ "$2" ] && REVERSE=1
 
 	# wait loop
 	set +e
-	RETVAL=1
-	while [ $RETVAL -ne 0 ]; do
+	CONTINUE=1
+	while [ $CONTINUE -eq 1 ]; do
 		ssh -o StrictHostKeyChecking=no -o ConnectTimeout=600 -o ConnectionAttempts=1000 "$HOST_STRING" -- hostname
 		RETVAL=$?
-		[ $RETVAL -ne 0 ] && sleep 1
+		[ ! "$RETVAR" ] && RETVAR=0
+
+		if [ $REVERSE -eq 0 -a $RETVAR -eq 0 ]; then
+			CONTINUE=0
+		elif [ $REVERSE -eq 0 -a $RETVAR -ne 0 ]; then
+			CONTINUE=1
+		elif [ $REVERSE -eq 1 -a $RETVAR -eq 0 ]; then
+			CONTINUE=1
+		else
+			CONTINUE=0
+		fi
+
+		[ $CONTINUE -ne 0 ] && sleep 1
 	done
 	set -e
 }
@@ -45,6 +59,7 @@ TTSERVER_BRANCH="$1"
 TTSERVER_PREFIX="$2"
 TTSERVER_PORT="$3"
 
+
 cd $VAGRANT_DIR
 mkdir server-$TTSERVER_PREFIX.taptinder.org
 cd server-$TTSERVER_PREFIX.taptinder.org/
@@ -60,7 +75,7 @@ ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- /ro
 
 # shutdown -r now
 ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- shutdown -r now || :
-sleep 5
-
+wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org" reverse
 wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org"
+
 ssh -t -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- /root/setup-ttserver-p2.sh $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT
