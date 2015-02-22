@@ -1,5 +1,20 @@
 #!/bin/bash
 
+function wait_for_ssh {
+	HOST_STRING="$1"
+
+	# wait loop
+	set +e
+	RETVAL=1
+	while [ $RETVAL -ne 0 ]; do
+		ssh -o StrictHostKeyChecking=no -o ConnectTimeout=600 -o ConnectionAttempts=1000 "$HOST_STRING" -- hostname
+		RETVAL=$?
+		[ $RETVAL -ne 0 ] && sleep 1
+	done
+	set -e
+}
+
+
 set -x
 set -e
 
@@ -24,22 +39,28 @@ if [ -z "$VAGRANT_DIR" ]; then
 	VAGRANT_DIR=/home/vagrant/taptinder-testing/fedora-21
 fi
 
+SRC_DIR=`pwd`
+
 TTSERVER_BRANCH="$1"
 TTSERVER_PREFIX="$2"
 TTSERVER_PORT="$3"
 
 cd $VAGRANT_DIR
-mkdir server-$TTSERVER_TYPE.taptinder.org
-cd server-$TTSERVER_TYPE.taptinder.org/
+mkdir server-$TTSERVER_PREFIX.taptinder.org
+cd server-$TTSERVER_PREFIX.taptinder.org/
 ln -s $VAGRANT_DIR/Vagrantfile .
 ls -al
 
 vagrant up
 
-rsync -ave "ssh -o StrictHostKeyChecking=no" ../setup-ttserver-p*.sh root@server-$TTSERVER_TYPE.taptinder.org:/root/
-ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_TYPE.taptinder.org -- /root/setup-ttserver-p1.sh $TTSERVER_BRANCH $TTSERVER_TYPE $TTSERVER_PORT
+wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org"
 
-# todo loop
-sleep 10
+rsync -ave "ssh -o StrictHostKeyChecking=no" $SRC_DIR/setup-ttserver-p*.sh root@server-$TTSERVER_PREFIX.taptinder.org:/root/
+ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- /root/setup-ttserver-p1.sh $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT
 
-ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_TYPE.taptinder.org -- /root/setup-ttserver-p2.sh $TTSERVER_BRANCH $TTSERVER_TYPE $TTSERVER_PORT
+# shutdown -r now
+ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- shutdown -r now || :
+sleep 5
+
+wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org"
+ssh -t -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- /root/setup-ttserver-p2.sh $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT

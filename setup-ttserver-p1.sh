@@ -13,5 +13,6 @@ echo 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAxBazxG49wf5Gu/zy8288eHr2lkbOi+EYhfSBm9
 
 yum -y update
 
+systemctl enable docker.service
+
 ip -f inet -o addr
-shutdown -r now

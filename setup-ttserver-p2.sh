@@ -23,6 +23,7 @@ TTSERVER_PREFIX="$2"
 TTSERVER_PORT="$3"
 
 systemctl start docker
+systemctl status docker
 
 # todo
 #useradd -G docker ttuh
@@ -41,3 +42,5 @@ docker pull $TTS_IMAGE
 docker pull $TTCL_IMAGE
 
 ./ttdocker $TTSERVER_PREFIX setup both $TTSERVER_PORT debug
+
+ip -f inet -o addr
