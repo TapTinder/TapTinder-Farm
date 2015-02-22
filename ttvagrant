@@ -68,14 +68,22 @@ ls -al
 
 vagrant up
 
+
 wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org"
+
+# todo
+sleep 3
 
 rsync -ave "ssh -o StrictHostKeyChecking=no" $SRC_DIR/setup-ttserver-p*.sh root@server-$TTSERVER_PREFIX.taptinder.org:/root/
 ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- /root/setup-ttserver-p1.sh $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT
 
 # shutdown -r now
 ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- shutdown -r now || :
-wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org" reverse
+
+# todo
+sleep 10
+#wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org" reverse
+
 wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org"
 
 ssh -t -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- /root/setup-ttserver-p2.sh $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT
