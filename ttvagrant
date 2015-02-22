@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -x
+set -e
+
+if [ -z "$1" ]; then
+	echo "Missing TTSERVER_BRANCH parameter."
+	echo
+	echo "Example: ./ttvagrant develop tttest66 2166"
+	exit 1
+fi
+
+if [ -z "$2" ]; then
+	echo "Missing TTSERVER_PREFIX parameter."
+	exit 1
+fi
+
+if [ -z "$3" ]; then
+	echo "Missing TTSERVER_PORT parameter."
+	exit 1
+fi
+
+if [ -z "$VAGRANT_DIR" ]; then
+	VAGRANT_DIR=/home/vagrant/taptinder-testing/fedora-21
+fi
+
+TTSERVER_BRANCH="$1"
+TTSERVER_PREFIX="$2"
+TTSERVER_PORT="$3"
+
+cd $VAGRANT_DIR
+mkdir server-$TTSERVER_TYPE.taptinder.org
+cd server-$TTSERVER_TYPE.taptinder.org/
+ln -s $VAGRANT_DIR/Vagrantfile .
+ls -al
+
+vagrant up
+
+rsync -ave "ssh -o StrictHostKeyChecking=no" ../setup-ttserver-p*.sh root@server-$TTSERVER_TYPE.taptinder.org:/root/
+ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_TYPE.taptinder.org -- /root/setup-ttserver-p1.sh $TTSERVER_BRANCH $TTSERVER_TYPE $TTSERVER_PORT
+
+# todo loop
+sleep 10
+
+ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_TYPE.taptinder.org -- /root/setup-ttserver-p2.sh $TTSERVER_BRANCH $TTSERVER_TYPE $TTSERVER_PORT
