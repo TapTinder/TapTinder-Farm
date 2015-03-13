@@ -33,20 +33,45 @@ set -x
 set -e
 
 if [ -z "$1" ]; then
-	echo "Missing TTSERVER_BRANCH parameter."
+	echo "Missing CMD parameter."
 	echo
-	echo "Example: ./ttvagrant develop tttest66 2166"
+	echo "Example: ./ttvagrant setup tttest66 develop 2166"
+	echo "Example: ./ttvagrant destroy tttest66"
 	exit 1
 fi
 
-if [ -z "$2" ]; then
-	echo "Missing TTSERVER_PREFIX parameter."
+CMD="$1"
+
+# list
+if [ "$CMD" != "list" ]; then
+	if [ -z "$2" ]; then
+		echo "Missing TTSERVER_PREFIX parameter."
+		exit 1
+	fi
+fi
+
+if [ "$CMD" != "list" -a "$CMD" != "setup" -a "$CMD" != "update" -a "$CMD" != "ssh" -a "$CMD" != "ip" -a "$CMD" != "destroy" ]; then
+	echo "Unknown command '$CMD'."
 	exit 1
 fi
 
-if [ -z "$3" ]; then
-	echo "Missing TTSERVER_PORT parameter."
-	exit 1
+TTSERVER_PREFIX="$2"
+
+# setup/update
+if [ "$CMD" == "setup" -o "$CMD" == "update" ]; then
+	if [ -z "$3" ]; then
+		echo "Missing TTSERVER_BRANCH parameter."
+		exit 1
+	fi
+	TTSERVER_BRANCH="$3"
+
+	if [ -z "$4" ]; then
+		echo "Settign TTSERVER_PORT to default value 2101."
+		TTSERVER_PORT="2101"
+	else
+		TTSERVER_PORT="$4"
+	fi
+
 fi
 
 if [ -z "$VAGRANT_DIR" ]; then
@@ -54,36 +79,76 @@ if [ -z "$VAGRANT_DIR" ]; then
 fi
 
 SRC_DIR=`pwd`
-
-TTSERVER_BRANCH="$1"
-TTSERVER_PREFIX="$2"
-TTSERVER_PORT="$3"
-
-
 cd $VAGRANT_DIR
-mkdir server-$TTSERVER_PREFIX.taptinder.org
-cd server-$TTSERVER_PREFIX.taptinder.org/
-ln -s $VAGRANT_DIR/Vagrantfile .
-ls -al
 
-vagrant up
+if [ "$CMD" == "list" ]; then
+	ls -1
+	exit 0
+fi
+
+HOST_NAME="server-$TTSERVER_PREFIX.taptinder.org"
+
+if [ "$CMD" == "ssh" ]; then
+	cd $HOST_NAME/
+	#vagrant ssh $HOST_NAME -- -tt -l root
+	ssh -oStrictHostKeyChecking=no root@$HOST_NAME
+	exit 0
+fi
+
+if [ "$CMD" == "ip" ]; then
+	cd $HOST_NAME/
+	#vagrant ssh $HOST_NAME -- -tt -l root
+	ssh -t -oStrictHostKeyChecking=no root@$HOST_NAME -- $'ip -f inet -o addr | perl -ne \'/eth\d+\s+inet\s+(\d+\.\d+\.\d+\.\d+)/; print "$1\n"\''
+	exit 0
+fi
 
 
-wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org"
+if [ "$CMD" == "destroy" ]; then
+	cd $HOST_NAME/
+	vagrant destroy
+	cd ..
+	rm -rf $HOST_NAME
+	exit 0
+fi
 
-# todo
-sleep 3
+if [ "$CMD" == "setup" ]; then
+	mkdir $HOST_NAME
+	cd $HOST_NAME/
+	ln -s $VAGRANT_DIR/Vagrantfile .
+	ls -al
 
-rsync -ave "ssh -o StrictHostKeyChecking=no" $SRC_DIR/setup-ttserver-p*.sh root@server-$TTSERVER_PREFIX.taptinder.org:/root/
-ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- /root/setup-ttserver-p1.sh $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT
+	vagrant up
 
-# shutdown -r now
-ssh -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- shutdown -r now || :
+	wait_for_ssh "root@$HOST_NAME"
 
-# todo
-sleep 10
-#wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org" reverse
+	# todo
+	sleep 3
+else
+	cd $HOST_NAME/
+fi
 
-wait_for_ssh "root@server-$TTSERVER_PREFIX.taptinder.org"
 
-ssh -t -oStrictHostKeyChecking=no root@server-$TTSERVER_PREFIX.taptinder.org -- /root/setup-ttserver-p2.sh $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT
+# Update scripts
+rsync -ave "ssh -o StrictHostKeyChecking=no" $SRC_DIR/setup-ttserver-p*.sh root@$HOST_NAME:/root/
+
+
+if [ "$CMD" == "setup" ]; then
+	ssh -oStrictHostKeyChecking=no root@$HOST_NAME -- /root/setup-ttserver-pr1.sh $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT
+
+	# shutdown -r now
+	ssh -oStrictHostKeyChecking=no root@$HOST_NAME -- shutdown -r now || :
+
+	# todo
+	sleep 10
+	#wait_for_ssh "root@$HOST_NAME" reverse
+
+	wait_for_ssh "root@$HOST_NAME"
+
+	ssh -t -oStrictHostKeyChecking=no root@$HOST_NAME -- /root/setup-ttserver-pr2.sh $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT
+fi
+
+REM_CMD="$CMD"
+ssh -t -oStrictHostKeyChecking=no root@$HOST_NAME -- "cp /root/setup-ttserver-pu1.sh /home/ttuh/setup-ttserver-pu1.sh ; chown ttuh /home/ttuh/setup-ttserver-pu1.sh"
+ssh -t -oStrictHostKeyChecking=no root@$HOST_NAME -- /usr/sbin/runuser -u ttuh /home/ttuh/setup-ttserver-pu1.sh $REM_CMD $TTSERVER_BRANCH $TTSERVER_PREFIX $TTSERVER_PORT
+
+ssh -t -oStrictHostKeyChecking=no root@$HOST_NAME -- 'ip -f inet -o addr'

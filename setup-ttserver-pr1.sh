@@ -12,6 +12,7 @@ echo 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAxBazxG49wf5Gu/zy8288eHr2lkbOi+EYhfSBm9
 #systemctl restart docker
 
 yum -y update
+yum -y install git
 
 systemctl enable docker.service
 
