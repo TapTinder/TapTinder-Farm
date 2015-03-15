@@ -35,8 +35,13 @@ set -e
 if [ -z "$1" ]; then
 	echo "Missing CMD parameter."
 	echo
-	echo "Example: ./ttvagrant setup tttest66 develop 2166"
-	echo "Example: ./ttvagrant destroy tttest66"
+	echo "Examples:"
+	echo "  ./ttvagrant setup tttest66 develop"
+	echo "  ./ttvagrant ip tttest66"
+	echo "  ./ttvagrant update tttest66 develop"
+	echo "  ./ttvagrant destroy tttest66"
+	echo "  ./ttvagrant ssh tttest66"
+	echo "  ./ttvagrant list"
 	exit 1
 fi
 
